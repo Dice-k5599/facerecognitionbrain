@@ -11,7 +11,7 @@ import './App.css';
 const initialState = {
   input: '',
   imageUrl: '',
-  box: {},
+  boxes: [{}],
   route: 'signin',
   isSignedIn: false,
   user: {
@@ -39,6 +39,7 @@ class App extends Component {
     }})
   }
 
+  // This function is called however many faces there are in an input pic
   calculateFaceLocation = (topRow, leftCol, bottomRow, rightCol) => {
     const image = document.getElementById('inputimage');
     const width = Number(image.width);
@@ -49,7 +50,8 @@ class App extends Component {
       bottom_row: height - (bottomRow * height),
       right_col: width - (rightCol * width)
     }
-    this.setState({box: newBox});
+    
+    return newBox;
   };
 
   onInputChange = (event) => {
@@ -147,21 +149,25 @@ class App extends Component {
               })
               .catch(console.log);
           }
-          console.log(JSON.parse(result).outputs[0].data.regions);
           const regions = JSON.parse(result).outputs[0].data.regions;
+          console.log(regions);
+          
+          // array will hold all the boxes that covers the regions of detected faces
+          // regions.map will return the regions of box for each faces
+          const boxesArray = regions.map(region => {
+            // Accessing and rounding the bounding box values
+            const boundingBox = region.region_info.bounding_box;
+            const topRow = boundingBox.top_row.toFixed(3);
+            const leftCol = boundingBox.left_col.toFixed(3);
+            const bottomRow = boundingBox.bottom_row.toFixed(3);
+            const rightCol = boundingBox.right_col.toFixed(3);
 
-          regions.forEach(region => {
-              // Accessing and rounding the bounding box values
-              const boundingBox = region.region_info.bounding_box;
-              const topRow = boundingBox.top_row.toFixed(3);
-              const leftCol = boundingBox.left_col.toFixed(3);
-              const bottomRow = boundingBox.bottom_row.toFixed(3);
-              const rightCol = boundingBox.right_col.toFixed(3);
+            
+            return this.calculateFaceLocation(topRow, leftCol, bottomRow, rightCol);
+        }); // end of regions.map()
 
-              region.data.concepts.forEach(concept => {
-                  this.calculateFaceLocation(topRow, leftCol, bottomRow, rightCol);
-              });
-          });
+        // after locating all the box location in boxesArray, set boxes state to this array
+        this.setState({boxes: boxesArray});
       })
       .catch(error => console.log('error', error));
 
@@ -178,7 +184,7 @@ class App extends Component {
   }
 
   render() {
-    const { imageUrl, box, route, user} = this.state;
+    const { imageUrl, boxes, route, user} = this.state;
     return (
       <div className="App">
         <Navigation onRouteChange={this.onRouteChange} isSignedIn={this.state.isSignedIn}/>
@@ -188,7 +194,7 @@ class App extends Component {
               <Logo />
               <Rank name={user.name} entries={user.entries}/>
               <ImageLinkForm onInputChange={this.onInputChange} onButtonSubmit={this.onButtonSubmit}/>
-              <FaceRecognition box={box} imageUrl={imageUrl} />
+              <FaceRecognition boxes={boxes} imageUrl={imageUrl} />
             </div>
           : (
             route === 'signin'
