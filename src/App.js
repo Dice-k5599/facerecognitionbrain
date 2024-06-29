@@ -63,7 +63,6 @@ class App extends Component {
   }
 
   onButtonSubmit = () => {
-    // console.log(this.state.input);
     this.setState({ imageUrl: this.state.input});
     /*
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -120,27 +119,54 @@ class App extends Component {
     // https://api.clarifai.com/v2/models/{YOUR_MODEL_ID}/outputs
     // this will default to the latest version_id
     // fetch("https://api.clarifai.com/v2/models/" + MODEL_ID +  "/outputs", requestOptions)
-    fetch('http://localhost:4000/api', {
-      method: 'post',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        input: this.state.input
+
+    // input validation, if input field is not empty then proceed.
+    if (this.state.input)
+    {
+      fetch('http://localhost:4000/api', {
+        method: 'post',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          input: this.state.input
+        })
       })
-    })
-      .then((response) => {
-        if (response.status === 500) {
-          throw new Error("API connection cannot be established at the momment");
-        }
-        return response.json();
-    })
-      .then(result => {
-          if (result)
+        .then((response) => {
+          if (response.status === 500) {
+            throw new Error("API connection cannot be established at the momment");
+          }
+          return response.json();
+      })
+        // even if the input is not a valid jpg image link, response will still be returned.
+        // Therefore, result will not be null. 
+        .then(result => {
+          const regions = JSON.parse(result).outputs[0].data.regions;
+          if (regions)
           {
+            // array will hold all the boxes that covers the regions of detected faces
+            // regions.map will return the regions of box for each faces
+            const boxesArray = regions.map(region => {
+            // Accessing and rounding the bounding box values
+            const boundingBox = region.region_info.bounding_box;
+            const topRow = boundingBox.top_row.toFixed(3);
+            const leftCol = boundingBox.left_col.toFixed(3);
+            const bottomRow = boundingBox.bottom_row.toFixed(3);
+            const rightCol = boundingBox.right_col.toFixed(3);
+            
+            
+            return this.calculateFaceLocation(topRow, leftCol, bottomRow, rightCol);
+            }); // end of regions.map()
+            
+            // after locating all the box location in boxesArray, set boxes state to this array
+            this.setState({boxes: boxesArray});
+
+            // for incrementing counter that keeps track of the number of face that an user has detected
+            // for the put request, we pass the user id and the number of face for given input picture
             fetch('http://localhost:4000/image', {
               method: 'put',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({
-                id: this.state.user.id
+                id: this.state.user.id,
+                faceCount: boxesArray.length
               })
             })
               .then(response => response.json())
@@ -149,28 +175,17 @@ class App extends Component {
               })
               .catch(console.log);
           }
-          const regions = JSON.parse(result).outputs[0].data.regions;
-          console.log(regions);
-          
-          // array will hold all the boxes that covers the regions of detected faces
-          // regions.map will return the regions of box for each faces
-          const boxesArray = regions.map(region => {
-            // Accessing and rounding the bounding box values
-            const boundingBox = region.region_info.bounding_box;
-            const topRow = boundingBox.top_row.toFixed(3);
-            const leftCol = boundingBox.left_col.toFixed(3);
-            const bottomRow = boundingBox.bottom_row.toFixed(3);
-            const rightCol = boundingBox.right_col.toFixed(3);
-
-            
-            return this.calculateFaceLocation(topRow, leftCol, bottomRow, rightCol);
-        }); // end of regions.map()
-
-        // after locating all the box location in boxesArray, set boxes state to this array
-        this.setState({boxes: boxesArray});
-      })
-      .catch(error => console.log('error', error));
-
+          else 
+          {
+            this.setState({boxes: []});
+          }
+        })
+        .catch(error => console.log('error', error));
+    }
+    else
+    {
+      this.setState({boxes: []});
+    }
   }
 
   // this funciton will be called every time a route change must occur
