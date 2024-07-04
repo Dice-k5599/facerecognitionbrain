@@ -123,7 +123,7 @@ class App extends Component {
     // input validation, if input field is not empty then proceed.
     if (this.state.input)
     {
-      fetch('http://localhost:4000/api', {
+      fetch('https://smart-brain-api-jik1.onrender.com/api', {
         method: 'post',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -153,6 +153,7 @@ class App extends Component {
             const rightCol = boundingBox.right_col.toFixed(3);
             
             
+            // calculateFaceLocation returns the location of the face for each input
             return this.calculateFaceLocation(topRow, leftCol, bottomRow, rightCol);
             }); // end of regions.map()
             
@@ -161,7 +162,7 @@ class App extends Component {
 
             // for incrementing counter that keeps track of the number of face that an user has detected
             // for the put request, we pass the user id and the number of face for given input picture
-            fetch('http://localhost:4000/image', {
+            fetch('https://smart-brain-api-jik1.onrender.com/image', {
               method: 'put',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({
